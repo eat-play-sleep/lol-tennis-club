@@ -1,0 +1,1541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LoL Tennis Chill Club - Interactive Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827; /* gray-900 */
+            color: #d1d5db; /* gray-300 */
+        }
+        .card {
+            background-color: #1f2937; /* gray-800 */
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, opacity 0.2s ease-in-out;
+        }
+        .card:hover:not(.cancelled):not(.expired) { /* Don't apply hover transform to disabled-like states */
+            transform: translateY(-3px);
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+        }
+        .card.cancelled, .card.expired { opacity: 0.6; }
+        .card.cancelled:hover, .card.expired:hover { opacity: 0.75; transform: translateY(0); /* No lift on hover for these */ }
+
+        .btn {
+            padding: 0.625rem 1.25rem; border-radius: 0.5rem; font-weight: 600;
+            transition: all 0.2s ease-in-out; display: inline-flex;
+            align-items: center; justify-content: center; letter-spacing: 0.025em;
+        }
+        .btn:active { transform: translateY(1px); }
+        .btn-primary {
+            background-color: #3b82f6; color: white;
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3), 0 2px 4px -1px rgba(59, 130, 246, 0.2);
+        }
+        .btn-primary:hover { background-color: #2563eb; box-shadow: 0 6px 8px -1px rgba(59, 130, 246, 0.4), 0 3px 5px -1px rgba(59, 130, 246, 0.3); }
+        .btn-secondary { background-color: #374151; color: #e5e7eb; }
+        .btn-secondary:hover { background-color: #4b5563; }
+        .btn-danger { background-color: #ef4444; color: white; }
+        .btn-danger:hover { background-color: #dc2626; }
+        .btn-warning { background-color: #f59e0b; color: #1f2937; }
+        .btn-warning:hover { background-color: #d97706; }
+        .btn-ai {
+            background-color: #8b5cf6; /* purple-500 */
+            color: white;
+        }
+        .btn-ai:hover {
+            background-color: #7c3aed; /* purple-600 */
+        }
+        .btn-landing {
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+        }
+
+
+        .input-field, select.input-field {
+            background-color: #374151; border: 1px solid #4b5563; color: #e5e7eb;
+            padding: 0.625rem 0.875rem; border-radius: 0.5rem;
+            transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .input-field:focus, select.input-field:focus {
+            outline: none; border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+        }
+        .modal { background-color: rgba(17, 24, 39, 0.85); }
+        .modal-content { background-color: #1f2937; border-radius: 0.75rem; }
+        
+        .label-text { color: #9ca3af; /* gray-400 */ font-size: 0.875rem; /* text-sm */ }
+        .value-text { color: #e5e7eb; /* gray-200 */ font-size: 1rem; /* text-base */ }
+        
+        #bookingDetailView .label-text { font-size: 0.9rem; } /* Slightly larger labels in detail view */
+        #bookingDetailView .value-text { font-size: 1.05rem; } /* Slightly larger values in detail view */
+        #detailBookingTitle { font-size: 1.875rem; line-height: 2.25rem; /* text-3xl */ }
+
+
+        .booking-detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
+        .detail-section { margin-bottom: 1.5rem; }
+        .detail-section h3 { font-size: 1.25rem; font-weight: 600; color: #60a5fa; margin-bottom: 0.75rem; border-bottom: 1px solid #374151; padding-bottom: 0.5rem;} /* text-lg */
+        .player-list li { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid #374151; } /* Increased padding */
+        .player-list li:last-child { border-bottom: none; }
+        .player-list .value-text { font-size: 1rem; } /* Ensure player names are also larger */
+        
+        .status-badge { font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.75rem; border-radius: 0.375rem; text-transform: uppercase; }
+        .status-active { background-color: #10b981; color: white; }
+        .status-cancelled { background-color: #ef4444; color: white; }
+        .status-expired { background-color: #6b7280; color: #e5e7eb; }
+        .area-tag { display: inline-flex; align-items: center; font-size: 0.75rem; font-weight: 600; padding: 0.25rem 0.75rem; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .booking-card-header { border-bottom: 1px solid #374151; padding-bottom: 0.75rem; margin-bottom: 0.75rem; }
+        .telegram-link i { transition: color 0.2s ease-in-out; font-size: 1.1em; /* Slightly larger icon */ }
+        .telegram-link:hover i { color: #60a5fa; }
+        .slot-icon { transition: color 0.2s ease-in-out; }
+        .slot-icon.filled { color: #34d399; }
+        .slot-icon.empty { color: #4b5563; }
+        .play-style-icon { width: 1.25em; height: 1.25em; }
+        .stat-card { background: linear-gradient(145deg, #1f2937, #374151); }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: #1f2937; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 10px; border: 2px solid #1f2937; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #2d3748; /* gray-800 */
+            color: #e2e8f0; /* gray-300 */
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out, bottom 0.3s ease-in-out;
+            pointer-events: none;
+        }
+        .toast.show {
+            opacity: 1;
+            bottom: 40px;
+            pointer-events: auto;
+        }
+        .toast.success { background-color: #10b981; color: white; }
+        .toast.error { background-color: #ef4444; color: white; }
+        .toast.info { background-color: #3b82f6; color: white; }
+        
+        /* Loading Spinner for AI features */
+        .loader {
+            border: 3px solid #374151; /* gray-700 */
+            border-top: 3px solid #3b82f6; /* blue-500 */
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+            display: inline-block; /* or 'block' if you want it on its own line */
+            margin-left: 8px; /* space it from the button text */
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .hidden { display: none !important; } /* Ensure hidden class takes precedence */
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-gray-900 shadow-lg py-4 px-6 sticky top-0 z-50 border-b border-gray-700">
+        <div class="container mx-auto flex justify-between items-center">
+            <a href="#" class="text-2xl font-bold text-white flex items-center" id="homeLink">
+                <i class="fas fa-tennis-ball mr-3 text-yellow-400 text-3xl"></i> 
+                <span data-lang-key="appTitle">LoL Tennis Chill Club</span>
+            </a>
+            <div class="flex items-center space-x-3">
+                <div class="relative">
+                    <button id="languageSwitcher" class="btn btn-secondary text-sm px-3 py-2">
+                        <i class="fas fa-globe mr-2"></i> <span id="currentLangDisplay">EN</span> <i class="fas fa-caret-down ml-2 text-xs"></i>
+                    </button>
+                    <div id="languageDropdown" class="absolute right-0 mt-2 w-32 bg-gray-700 rounded-md shadow-lg py-1 z-20 hidden">
+                        <a href="#" class="block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white" data-lang="en">English</a>
+                        <a href="#" class="block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white" data-lang="zh">繁體中文</a>
+                    </div>
+                </div>
+                <span class="text-gray-400 text-sm hidden md:block" data-lang-key="welcomeUser" id="welcomeUserText">Welcome, User!</span>
+                <button id="openCreateBookingModalBtnHeader" class="btn btn-primary text-sm hidden">
+                    <i class="fas fa-plus mr-2"></i> <span data-lang-key="createBookingBtn">Create Booking</span>
+                </button>
+                <button id="myProfileLink" class="btn btn-secondary text-sm p-2.5 hidden" title="My Profile">
+                    <i class="fas fa-user-circle text-lg"></i>
+                </button>
+                <button id="logoutBtnHeader" class="btn btn-secondary text-sm p-2.5 hidden" title="Logout" data-lang-key="logoutBtn">
+                    <i class="fas fa-sign-out-alt text-lg"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="container mx-auto p-6" id="mainContent">
+
+        <!-- LANDING PAGE VIEW -->
+        <section id="landingPageView" class="hidden">
+            <div class="text-center py-12 md:py-20">
+                <i class="fas fa-tennis-ball text-yellow-400 text-6xl mb-6"></i>
+                <h1 class="text-4xl md:text-5xl font-bold text-white mb-4" data-lang-key="landingTitle">Welcome to LoL Tennis Chill Club!</h1>
+                <p class="text-lg md:text-xl text-gray-300 mb-8 max-w-2xl mx-auto" data-lang-key="landingSubtitle">Easily find, create, and join tennis games with fellow club members. No more endless chat scrolling!</p>
+                
+                <!-- Auth Form on Landing Page -->
+                <div id="authSectionLanding" class="mt-10 max-w-md mx-auto bg-gray-800 p-6 sm:p-8 rounded-lg shadow-xl">
+                    <h2 class="text-2xl font-semibold text-white mb-6 text-center" data-lang-key="getStarted">Get Started</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="authEmailLanding" class="block text-sm font-medium label-text mb-1" data-lang-key="emailLabel">Email</label>
+                            <input type="email" id="authEmailLanding" placeholder="your@email.com" class="input-field w-full">
+                        </div>
+                        <div>
+                            <label for="authPasswordLanding" class="block text-sm font-medium label-text mb-1" data-lang-key="passwordLabel">Password</label>
+                            <input type="password" id="authPasswordLanding" placeholder="••••••••" class="input-field w-full">
+                        </div>
+                        <div class="flex flex-col sm:flex-row sm:space-x-3 space-y-3 sm:space-y-0 pt-2">
+                            <button id="loginBtnLanding" class="btn btn-primary w-full sm:flex-1" data-lang-key="loginBtn">Login</button>
+                            <button id="signupBtnLanding" class="btn btn-secondary w-full sm:flex-1" data-lang-key="signupBtn">Sign Up</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- DASHBOARD VIEW -->
+        <section id="dashboardView" class="hidden">
+            <!-- Summary Stats -->
+            <section class="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="card stat-card text-center p-6">
+                    <div class="flex items-center justify-center text-blue-400 mb-3">
+                        <i class="fas fa-calendar-check fa-2x mr-3"></i>
+                        <h2 class="text-xl font-semibold" data-lang-key="activeBookingsTitle">Active Bookings (Not Full)</h2>
+                    </div>
+                    <p class="text-4xl font-bold text-white" id="activeBookingsCount">0</p>
+                </div>
+                <div class="card stat-card text-center p-6">
+                    <div class="flex items-center justify-center text-green-400 mb-3">
+                        <i class="fas fa-users fa-2x mr-3"></i>
+                        <h2 class="text-xl font-semibold" data-lang-key="availableSpotsTitle">Total Available Spots</h2>
+                    </div>
+                    <p class="text-4xl font-bold text-white" id="availableSpotsCount">0</p>
+                </div>
+            </section>
+
+            <!-- Filters -->
+            <section class="card mb-8 p-6">
+                <h2 class="text-xl font-semibold mb-5 text-gray-200" data-lang-key="filterSearchTitle">Filter & Search</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+                    <select id="dateRangeFilter" class="input-field">
+                        <option value="all_upcoming" data-lang-key="dateRangeAllUpcoming">All Upcoming</option>
+                        <option value="next_10_days" data-lang-key="dateRangeNext10">Next 10 Days</option>
+                        <option value="next_20_days" data-lang-key="dateRangeNext20">Next 20 Days</option>
+                        <option value="next_30_days" data-lang-key="dateRangeNext30">Next 30 Days</option>
+                    </select>
+                    <select id="playStyleFilter" class="input-field">
+                        <option value="all" data-lang-key="playStyleAll">All Play Styles</option>
+                        <option value="rallying" data-lang-key="playStyleRallying">Rallying / 搓波</option>
+                        <option value="sets" data-lang-key="playStyleSets">Playing Sets / 開SET</option>
+                        <option value="other" data-lang-key="playStyleOther">Other / 其他</option>
+                    </select>
+                    <select id="areaFilter" class="input-field">
+                        <option value="all" data-lang-key="areaAll">All Areas</option>
+                        <option value="hk_island" data-lang-key="areaHKIsland">Hong Kong Island</option>
+                        <option value="kowloon" data-lang-key="areaKowloon">Kowloon</option>
+                        <option value="nt" data-lang-key="areaNT">New Territories</option>
+                    </select>
+                </div>
+            </section>
+
+            <!-- Booking Cards List -->
+            <section id="bookingListSection">
+                <h2 class="text-2xl font-semibold mb-6 text-gray-100" data-lang-key="upcomingGamesTitle">Upcoming Games</h2>
+                <div id="bookingListContainer">
+                    <!-- Booking cards will be injected here by JavaScript -->
+                    <p class="text-center text-gray-400" data-lang-key="noBookingsFound">No bookings found matching your criteria.</p>
+                </div>
+            </section>
+             <!-- Footer Note -->
+            <footer class="text-center text-sm text-gray-500 mt-12 py-6 border-t border-gray-800">
+                <p data-lang-key="footerNote">Note: Bookings are displayed for upcoming dates and the past 60 days. Older records are automatically archived.</p>
+                <p class="mt-1">© <span id="currentYear"></span> LoL Tennis Chill Club. All Rights Reserved (Mockup).</p>
+            </footer>
+        </section>
+
+        <!-- BOOKING DETAIL VIEW -->
+        <section id="bookingDetailView" class="hidden">
+            <div class="mb-6">
+                <button id="backToDashboardBtn" class="btn btn-secondary text-sm">
+                    <i class="fas fa-arrow-left mr-2"></i> <span data-lang-key="backToDashboard">Back to Dashboard</span>
+                </button>
+            </div>
+            <div class="card">
+                <div class="booking-card-header flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+                    <div>
+                        <h2 class="text-3xl font-bold text-blue-400 mb-1" id="detailBookingTitle"></h2>
+                        <span class="area-tag bg-blue-500 text-white" id="detailAreaTag"></span>
+                    </div>
+                    <span class="status-badge mt-2 sm:mt-0" id="detailStatusBadge"></span>
+                </div>
+
+                <div class="booking-detail-grid">
+                    <div class="detail-section">
+                        <h3 data-lang-key="courtInfoTitle">Court Information</h3>
+                        <p><strong data-lang-key="courtLabel" class="label-text">Court:</strong> <span class="value-text" id="detailCourtName"></span></p>
+                        <p><strong data-lang-key="addressLabel" class="label-text">Address:</strong> <span class="value-text" id="detailCourtAddress"></span> <a href="#" id="detailMapsLink" target="_blank" class="text-blue-400 hover:text-blue-300 ml-1"><i class="fas fa-external-link-alt"></i></a></p>
+                    </div>
+
+                    <div class="detail-section">
+                        <h3 data-lang-key="gameDetailsTitle">Game Details</h3>
+                        <p class="flex items-center"><strong data-lang-key="playStyleLabel" class="label-text mr-1">Play Style:</strong> 
+                            <i class="play-style-icon mr-2" id="detailPlayStyleIcon"></i>
+                            <span class="value-text" id="detailPlayStyleName"></span>
+                        </p>
+                        <p><strong data-lang-key="durationLabel" class="label-text">Duration:</strong> <span class="value-text" id="detailDuration"></span></p>
+                        <p><strong data-lang-key="creatorLabel" class="label-text">Creator:</strong> <span class="value-text" id="detailCreatorName"></span> <a href="#" id="detailCreatorTelegram" class="text-blue-400 hover:text-blue-300 telegram-link" title="Contact creator" data-lang-title="contactCreatorTooltip"><i class="fab fa-telegram-plane ml-1"></i></a></p>
+                        <p><strong data-lang-key="ballsLabel" class="label-text">Balls:</strong> <span class="value-text" id="detailBallsInfo"></span> <i class="fas fa-baseball-ball text-yellow-400 ml-1"></i></p>
+                    </div>
+                
+                    <div class="detail-section">
+                        <h3 data-lang-key="costDetailsTitle">Cost Details</h3>
+                        <p><strong data-lang-key="totalCourtChargeLabel" class="label-text">Total Court Charge:</strong> <span class="font-semibold text-red-400 value-text" id="detailTotalCharge"></span></p>
+                        <p><strong data-lang-key="costPerPersonLabel" class="label-text">Est. Cost/Person:</strong> <span class="font-semibold text-green-400 value-text" id="detailCostPerPerson"></span></p>
+                    </div>
+                    
+                    <div class="detail-section md:col-span-2">
+                        <h3 data-lang-key="notesLabel">Notes</h3>
+                        <p class="value-text italic" id="detailNotes"></p>
+                    </div>
+                </div>
+
+                <div class="detail-section mt-4">
+                    <h3 data-lang-key="playersJoinedTitle">Players Joined (<span id="detailJoinedCount">0</span>/<span id="detailTotalSlots">0</span>)</h3>
+                    <ul class="player-list" id="detailPlayerList">
+                        <!-- Player list items will be injected here -->
+                    </ul>
+                </div>
+                 <!-- Gemini Icebreakers Section -->
+                <div class="detail-section mt-6" id="icebreakersSection">
+                    <button id="suggestIcebreakersBtn" class="btn btn-ai text-sm mb-3">
+                        <span data-lang-key="suggestIcebreakersBtn">✨ Suggest Icebreakers</span>
+                        <span id="icebreakersLoader" class="loader hidden"></span>
+                    </button>
+                    <div id="icebreakersResult" class="value-text p-3 bg-gray-700 rounded-md hidden whitespace-pre-wrap"></div>
+                </div>
+                
+                <div class="mt-8 pt-6 border-t border-gray-700 flex flex-wrap gap-3 justify-end" id="detailActionButtons">
+                    <div id="joinGameSection" class="flex items-center gap-2 hidden">
+                        <label for="ballsToBring" class="text-sm label-text" data-lang-key="ballsToBringLabel">Balls to bring:</label>
+                        <input type="number" id="ballsToBring" min="0" value="0" class="input-field w-20 text-sm">
+                        <button id="confirmJoinBtn" class="btn btn-primary"><i class="fas fa-user-plus mr-2"></i><span data-lang-key="joinGameBtn">Join Game</span></button>
+                    </div>
+                    <button id="withdrawBtn" class="btn btn-warning hidden"><i class="fas fa-user-minus mr-2"></i><span data-lang-key="withdrawBtn">Withdraw</span></button>
+                    <button id="editBookingBtnDetail" class="btn btn-secondary hidden"><i class="fas fa-edit mr-2"></i><span data-lang-key="editBookingBtn">Edit Booking</span></button>
+                    <button id="cancelBookingBtnDetail" class="btn btn-danger hidden"><i class="fas fa-times-circle mr-2"></i><span data-lang-key="cancelBookingBtn">Cancel Booking</span></button>
+                </div>
+            </div>
+        </section>
+
+        <!-- USER PROFILE VIEW -->
+        <section id="userProfileView" class="hidden">
+            <div class="mb-6">
+                 <button id="backToDashboardBtnProfile" class="btn btn-secondary text-sm">
+                    <i class="fas fa-arrow-left mr-2"></i> <span data-lang-key="backToDashboard">Back to Dashboard</span>
+                </button>
+            </div>
+            <div class="card">
+                <h2 class="text-2xl font-bold text-blue-400 mb-6" data-lang-key="userProfileTitle">User Profile</h2>
+                <form id="userProfileForm">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <label for="displayName" class="block text-sm font-medium label-text mb-1" data-lang-key="displayNameLabel">Display Name</label>
+                            <input type="text" id="displayName" name="displayName" class="input-field w-full">
+                        </div>
+                        <div>
+                            <label for="telegramUsername" class="block text-sm font-medium label-text mb-1" data-lang-key="telegramUsernameLabel">Telegram Username</label>
+                            <input type="text" id="telegramUsername" name="telegramUsername" placeholder="@username" class="input-field w-full">
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-save mr-2"></i><span data-lang-key="saveProfileBtn">Save Profile</span></button>
+                    </div>
+                </form>
+                <div class="mt-10">
+                    <h3 class="text-xl font-semibold text-gray-200 mb-4" data-lang-key="myCreatedBookings">My Created Bookings</h3>
+                    <ul id="createdBookingsList" class="space-y-2"></ul>
+                </div>
+                <div class="mt-8">
+                    <h3 class="text-xl font-semibold text-gray-200 mb-4" data-lang-key="myJoinedGames">Games I've Joined</h3>
+                    <ul id="joinedGamesList" class="space-y-2"></ul>
+                </div>
+
+                <!-- Admin Section -->
+                <div id="adminSection" class="mt-10 hidden">
+                    <h3 class="text-xl font-bold text-red-400 mb-4 border-t border-gray-700 pt-6" data-lang-key="adminPanelTitle">Admin Panel</h3>
+                    <div class="space-y-3">
+                        <button id="adminRemoveUserBtn" class="btn btn-danger text-sm w-full sm:w-auto" data-lang-key="adminRemoveUser">Remove User (Mock)</button>
+                        <button id="adminRemoveBookingBtn" class="btn btn-danger text-sm w-full sm:w-auto" data-lang-key="adminRemoveBooking">Remove Booking (Mock)</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Edit Booking Modal -->
+    <div id="editBookingModal" class="fixed inset-0 modal items-center justify-center p-4 hidden z-50">
+        <div class="modal-content w-full max-w-xl p-8 rounded-lg shadow-xl transform transition-all sm:my-8">
+            <div class="flex justify-between items-center mb-6 pb-3 border-b border-gray-700">
+                <h2 class="text-2xl font-semibold text-gray-100" data-lang-key="editModalTitle">Edit Booking</h2>
+                <button id="closeEditBookingModal" class="text-gray-500 hover:text-white text-3xl leading-none">×</button>
+            </div>
+            <form id="editBookingForm">
+                <input type="hidden" id="editingBookingId">
+                <div class="space-y-5">
+                    <div><label for="editCourtName" class="block text-sm font-medium label-text mb-1" data-lang-key="courtNameLabel">Court Name/Venue</label><input type="text" id="editCourtName" class="input-field w-full" required></div>
+                    <div><label for="editCourtAddress" class="block text-sm font-medium label-text mb-1" data-lang-key="courtAddressLabel">Address</label><input type="text" id="editCourtAddress" class="input-field w-full" required></div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div><label for="editCourtArea" class="block text-sm font-medium label-text mb-1" data-lang-key="areaLabel">Area</label><select id="editCourtArea" class="input-field w-full"><option value="hk_island" data-lang-key="areaHKIsland">HK Island</option><option value="kowloon" data-lang-key="areaKowloon">Kowloon</option><option value="nt" data-lang-key="areaNT">New Territories</option></select></div>
+                        <div><label for="editBookingDate" class="block text-sm font-medium label-text mb-1" data-lang-key="dateLabel">Date</label><input type="date" id="editBookingDate" class="input-field w-full" required></div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div><label for="editStartTime" class="block text-sm font-medium label-text mb-1" data-lang-key="startTimeLabel">Start Time</label><input type="time" id="editStartTime" class="input-field w-full" step="1800" required></div>
+                        <div><label for="editDuration" class="block text-sm font-medium label-text mb-1" data-lang-key="durationLabel">Duration</label><select id="editDuration" class="input-field w-full"><option value="1">1h</option><option value="1.5">1.5h</option><option value="2">2h</option></select></div>
+                    </div>
+                    <div><label for="editPlayStyle" class="block text-sm font-medium label-text mb-1" data-lang-key="playStyleLabel">Play Style</label><select id="editPlayStyle" class="input-field w-full"><option value="rallying" data-lang-key="playStyleRallying">Rallying</option><option value="sets" data-lang-key="playStyleSets">Sets</option><option value="other" data-lang-key="playStyleOther">Other</option></select></div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div><label for="editTotalSlots" class="block text-sm font-medium label-text mb-1" data-lang-key="totalSlotsLabel">Total Slots</label><input type="number" id="editTotalSlots" min="1" class="input-field w-full" required></div>
+                        <div><label for="editCourtCharge" class="block text-sm font-medium label-text mb-1" data-lang-key="courtChargeLabel">Court Charge (HK$)</label><input type="number" id="editCourtCharge" min="0" class="input-field w-full"></div>
+                    </div>
+                    <div><label for="editBallsProvided" class="block text-sm font-medium label-text mb-1" data-lang-key="ballsCreatorProvideLabel">Balls by Creator</label><input type="number" id="editBallsProvided" min="0" class="input-field w-full"></div>
+                    <div><label for="editBookingStatus" class="block text-sm font-medium label-text mb-1" data-lang-key="statusLabel">Status</label><select id="editBookingStatus" class="input-field w-full"><option value="active" data-lang-key="statusActive">Active</option><option value="cancelled" data-lang-key="statusCancelled">Cancelled</option></select></div>
+                    <div>
+                        <label for="editNotes" class="block text-sm font-medium label-text mb-1" data-lang-key="notesLabel">Notes</label>
+                        <textarea id="editNotes" rows="3" class="input-field w-full"></textarea>
+                        <button type="button" id="enhanceEditNoteBtn" class="btn btn-ai text-xs mt-2">
+                            <span data-lang-key="enhanceNoteBtn">✨ Enhance Note with AI</span>
+                            <span id="editNoteLoader" class="loader hidden"></span>
+                        </button>
+                    </div>
+                </div>
+                <div class="text-right mt-8 pt-5 border-t border-gray-700">
+                    <button type="button" id="cancelEditBooking" class="btn btn-secondary mr-3" data-lang-key="cancelBtn">Cancel</button>
+                    <button type="submit" class="btn btn-primary" data-lang-key="saveChangesBtn">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Create Booking Modal -->
+    <div id="createBookingModal" class="fixed inset-0 modal items-center justify-center p-4 hidden z-50">
+        <div class="modal-content w-full max-w-xl p-8 rounded-lg shadow-xl transform transition-all sm:my-8">
+            <div class="flex justify-between items-center mb-6 pb-3 border-b border-gray-700">
+                <h2 class="text-2xl font-semibold text-gray-100" data-lang-key="createModalTitle">Create New Booking</h2>
+                <button id="closeCreateBookingModal" class="text-gray-500 hover:text-white text-3xl leading-none">×</button>
+            </div>
+            <form id="createBookingForm">
+                 <div class="space-y-5">
+                    <div><label for="createCourtName" class="block text-sm font-medium label-text mb-1" data-lang-key="courtNameLabel">Court Name/Venue</label><input type="text" id="createCourtName" class="input-field w-full" required></div>
+                    <div><label for="createCourtAddress" class="block text-sm font-medium label-text mb-1" data-lang-key="courtAddressLabel">Address</label><input type="text" id="createCourtAddress" class="input-field w-full" required></div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div><label for="createCourtArea" class="block text-sm font-medium label-text mb-1" data-lang-key="areaLabel">Area</label><select id="createCourtArea" class="input-field w-full"><option value="hk_island" data-lang-key="areaHKIsland">HK Island</option><option value="kowloon" data-lang-key="areaKowloon">Kowloon</option><option value="nt" data-lang-key="areaNT">New Territories</option></select></div>
+                        <div><label for="createBookingDate" class="block text-sm font-medium label-text mb-1" data-lang-key="dateLabel">Date</label><input type="date" id="createBookingDate" class="input-field w-full" required></div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div><label for="createStartTime" class="block text-sm font-medium label-text mb-1" data-lang-key="startTimeLabel">Start Time</label><input type="time" id="createStartTime" class="input-field w-full" step="1800" required></div>
+                        <div><label for="createDuration" class="block text-sm font-medium label-text mb-1" data-lang-key="durationLabel">Duration</label><select id="createDuration" class="input-field w-full"><option value="1">1h</option><option value="1.5">1.5h</option><option value="2">2h</option></select></div>
+                    </div>
+                    <div><label for="createPlayStyle" class="block text-sm font-medium label-text mb-1" data-lang-key="playStyleLabel">Play Style</label><select id="createPlayStyle" class="input-field w-full"><option value="rallying" data-lang-key="playStyleRallying">Rallying</option><option value="sets" data-lang-key="playStyleSets">Sets</option><option value="other" data-lang-key="playStyleOther">Other</option></select></div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div><label for="createTotalSlots" class="block text-sm font-medium label-text mb-1" data-lang-key="totalSlotsLabel">Total Slots</label><input type="number" id="createTotalSlots" min="2" value="4" class="input-field w-full" required></div>
+                        <div><label for="createCourtCharge" class="block text-sm font-medium label-text mb-1" data-lang-key="courtChargeLabel">Court Charge (HK$)</label><input type="number" id="createCourtCharge" min="0" value="0" class="input-field w-full"></div>
+                    </div>
+                    <div><label for="createBallsProvided" class="block text-sm font-medium label-text mb-1" data-lang-key="ballsCreatorProvideLabel">Balls by Creator</label><input type="number" id="createBallsProvided" min="0" value="0" class="input-field w-full"></div>
+                    <div>
+                        <label for="createNotes" class="block text-sm font-medium label-text mb-1" data-lang-key="notesLabel">Notes</label>
+                        <textarea id="createNotes" rows="3" class="input-field w-full"></textarea>
+                        <button type="button" id="enhanceCreateNoteBtn" class="btn btn-ai text-xs mt-2">
+                            <span data-lang-key="enhanceNoteBtn">✨ Enhance Note with AI</span>
+                            <span id="createNoteLoader" class="loader hidden"></span>
+                        </button>
+                    </div>
+                </div>
+                <div class="text-right mt-8 pt-5 border-t border-gray-700">
+                    <button type="button" id="cancelCreateBooking" class="btn btn-secondary mr-3" data-lang-key="cancelBtn">Cancel</button>
+                    <button type="submit" class="btn btn-primary" data-lang-key="submitBookingBtn">Submit Booking</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification Placeholder -->
+    <div id="toastNotification" class="toast">
+        <span id="toastMessage"></span>
+    </div>
+
+    <!-- Firebase SDKs and Initialization -->
+    <script type="module">
+      // Import the functions you need from the SDKs you need
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+      import { 
+          getAuth, 
+          onAuthStateChanged, 
+          createUserWithEmailAndPassword, 
+          signInWithEmailAndPassword, 
+          signOut, 
+          updateProfile 
+      } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+      import { 
+          getFirestore, 
+          collection, 
+          addDoc, 
+          doc, 
+          updateDoc, 
+          serverTimestamp, 
+          Timestamp 
+      } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+      // Your web app's Firebase configuration
+      const firebaseConfig = {
+        apiKey: "AIzaSyBWLK-BC6GjD51q9zzQjEDCZLUtwCt5tRA",
+  authDomain: "lol-tennis-chill-club-206d8.firebaseapp.com",
+  projectId: "lol-tennis-chill-club-206d8",
+  storageBucket: "lol-tennis-chill-club-206d8.firebasestorage.app",
+  messagingSenderId: "870581705605",
+  appId: "1:870581705605:web:009cb66cbce7e10aa582ec"
+      };
+
+      // Initialize Firebase
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app); 
+      const db = getFirestore(app); 
+
+      window.firebaseDb = db;
+      window.FirebaseTimestamp = Timestamp;
+      window.addDocFirebase = addDoc; 
+      window.collectionFirebase = collection; 
+      window.docFirebase = doc; 
+      window.updateDocFirebase = updateDoc; 
+      window.serverTimestampFirebase = serverTimestamp; 
+
+      // Auth state listener directly in the module
+      onAuthStateChanged(auth, (user) => {
+            const authSectionLandingDiv = document.getElementById('authSectionLanding'); 
+            const logoutBtnHeaderEl = document.getElementById('logoutBtnHeader');
+            const welcomeUserTextEl = document.getElementById('welcomeUserText');
+            const myProfileLinkEl = document.getElementById('myProfileLink');
+            const openCreateBookingModalBtnHeaderEl = document.getElementById('openCreateBookingModalBtnHeader');
+
+            if (user) {
+                currentFirebaseUser = user; 
+                currentUserProfile.id = user.uid;
+                currentUserProfile.name = user.displayName || (user.email ? user.email.split('@')[0] : "User");
+                
+                if(authSectionLandingDiv) authSectionLandingDiv.classList.add('hidden'); 
+                if(logoutBtnHeaderEl) logoutBtnHeaderEl.classList.remove('hidden');
+                if(myProfileLinkEl) myProfileLinkEl.classList.remove('hidden');
+                if(openCreateBookingModalBtnHeaderEl) {
+                    openCreateBookingModalBtnHeaderEl.disabled = false;
+                    openCreateBookingModalBtnHeaderEl.classList.remove('hidden');
+                }
+                if(welcomeUserTextEl && translations[currentLanguage] && translations[currentLanguage].welcomeUser) {
+                     welcomeUserTextEl.textContent = `${translations[currentLanguage].welcomeUser.split('User!')[0]}${currentUserProfile.name}!`;
+                } else if (welcomeUserTextEl) {
+                    welcomeUserTextEl.textContent = `Welcome, ${currentUserProfile.name}!`; 
+                }
+                showView('dashboardView'); 
+                
+            } else {
+                currentFirebaseUser = null;
+                currentUserProfile.id = null;
+                currentUserProfile.name = "User";
+                currentUserProfile.telegram = "";
+
+                if(authSectionLandingDiv) authSectionLandingDiv.classList.remove('hidden'); 
+                if(logoutBtnHeaderEl) logoutBtnHeaderEl.classList.add('hidden');
+                if(myProfileLinkEl) myProfileLinkEl.classList.add('hidden'); 
+                if(openCreateBookingModalBtnHeaderEl) {
+                     openCreateBookingModalBtnHeaderEl.disabled = true; 
+                     openCreateBookingModalBtnHeaderEl.classList.add('hidden');
+                }
+                if(welcomeUserTextEl && translations[currentLanguage]) welcomeUserTextEl.textContent = translations[currentLanguage].welcomeUser;
+                
+                showView('landingPageView'); 
+            }
+        });
+
+        // Expose auth action functions
+        window.appAuth = {
+            signUp: (email, password) => createUserWithEmailAndPassword(auth, email, password),
+            logIn: (email, password) => signInWithEmailAndPassword(auth, email, password),
+            logOut: () => signOut(auth),
+            updateUserProfile: (user, profileData) => updateProfile(user, profileData) 
+        };
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof setLanguage === "function") {
+                 setLanguage(currentLanguage); 
+            }
+        });
+
+    </script>
+
+    <script>
+        // --- Translations (Expanded) ---
+        const translations = {
+            en: { 
+                appTitle: "LoL Tennis Chill Club", welcomeUser: "Welcome, User!", createBookingBtn: "Create Booking",
+                backToDashboard: "Back to Dashboard", courtInfoTitle: "Court Information", gameDetailsTitle: "Game Details",
+                costDetailsTitle: "Cost Details", playersJoinedTitle: "Players Joined", addressLabel: "Address:",
+                ballsToBringLabel: "Balls to bring:", joinGameBtn: "Join Game", withdrawBtn: "Withdraw",
+                editBookingBtn: "Edit Booking", cancelBookingBtn: "Cancel Booking", userProfileTitle: "User Profile",
+                displayNameLabel: "Display Name", telegramUsernameLabel: "Telegram Username", saveProfileBtn: "Save Profile",
+                myCreatedBookings: "My Created Bookings", myJoinedGames: "Games I've Joined", loadingDashboard: "Loading Dashboard...",
+                dashboardMockupInfo: "(This is a placeholder. The main dashboard is in the other HTML file.)",
+                editModalTitle: "Edit Booking", saveChangesBtn: "Save Changes",
+                activeBookingsTitle: "Active Bookings (Not Full)", availableSpotsTitle: "Total Available Spots",
+                filterSearchTitle: "Filter & Search", dateRangeAllUpcoming: "All Upcoming", dateRangeNext10: "Next 10 Days",
+                dateRangeNext20: "Next 20 Days", dateRangeNext30: "Next 30 Days", playStyleAll: "All Play Styles",
+                playStyleRallying: "Rallying / 搓波", playStyleSets: "Playing Sets / 開SET", playStyleOther: "Other / 其他",
+                areaAll: "All Areas", areaHKIsland: "Hong Kong Island", areaKowloon: "Kowloon", areaNT: "New Territories",
+                upcomingGamesTitle: "Upcoming Games", courtLabel: "Court:", playStyleLabel: "Play Style:",
+                creatorLabel: "Creator:", slotsLabel: "Slots:", statusLabel: "Status:", statusActive: "Active",
+                statusCancelled: "Cancelled", statusExpired: "Expired", totalCourtChargeLabel: "Total Court Charge:",
+                costPerPersonLabel: "Est. Cost/Person:", ballsLabel: "Balls:", viewDetailsBtn: "View Details",
+                ballsBringOwn: "Bring Your Own", gameFull: "(FULL)",
+                footerNote: "Note: Bookings are displayed for upcoming dates and the past 60 days. Older records are automatically archived.",
+                createModalTitle: "Create New Booking", courtNameLabel: "Court Name/Venue", courtAddressLabel: "Address (Hong Kong)",
+                areaLabel: "Area", dateLabel: "Date", startTimeLabel: "Start Time", durationLabel: "Duration",
+                totalSlotsLabel: "Total Slots (incl. yourself)", courtChargeLabel: "Court Charge (Total HK$)",
+                ballsCreatorProvideLabel: "How many tennis balls will you provide?", notesLabel: "Notes (optional)",
+                cancelBtn: "Cancel", submitBookingBtn: "Submit Booking", contactCreatorTooltip: "Contact creator",
+                contactPlayerTooltip: "Contact Player", noBookingsFound: "No bookings found matching your criteria.",
+                bookingNotFound: "Booking not found.", profileSaved: "Profile saved successfully!",
+                bookingCreated: "Booking created successfully!", bookingUpdated: "Booking updated successfully!",
+                joinedGame: "Successfully joined the game!", joinGameError: "Could not join game (full or already joined).",
+                withdrewFromGame: "Withdrew from the game.", confirmCancelBooking: "Are you sure you want to cancel this booking?",
+                bookingCancelled: "Booking cancelled.", enhanceNoteBtn: "✨ Enhance Note with AI", suggestIcebreakersBtn: "✨ Suggest Icebreakers",
+                aiError: "AI feature failed. Please try again.", icebreakersGenerated: "Icebreakers generated!",
+                loginBtn: "Login", signupBtn: "Sign Up", logoutBtn: "Logout", loggedInAs: "Logged in as:",
+                signupSuccess: "Sign up successful!", loginSuccess: "Login successful!", logoutSuccess: "Logged out.",
+                mustBeLoggedInToBook: "You must be logged in to create a booking.", errorCreatingBooking: "Error creating booking.",
+                enterNoteFirst: "Please enter a note first to enhance.", emailPasswordRequired: "Email and password are required.",
+                mustBeLoggedIn: "You must be logged in to perform this action.",
+                cannotEditBooking: "You cannot edit this booking.", cannotUpdateBooking: "Error updating booking. You might not be the creator.",
+                landingTitle: "Welcome to LoL Tennis Chill Club!", landingSubtitle: "Easily find, create, and join tennis games with fellow club members. No more endless chat scrolling!",
+                landingHint: "(Use the Login/Sign Up buttons in the header above to get started)",
+                getStarted: "Get Started", emailLabel: "Email", passwordLabel: "Password",
+                adminPanelTitle: "Admin Panel", adminRemoveUser: "Remove User (Mock)", adminRemoveBooking: "Remove Booking (Mock)",
+                invalidTimeMinutes: "Minutes for start time must be '00' or '30'."
+            },
+            zh: { 
+                appTitle: "LoL網球休閒會", welcomeUser: "歡迎, 用戶!", createBookingBtn: "創建預訂",
+                backToDashboard: "返回主頁板", courtInfoTitle: "場地資訊", gameDetailsTitle: "球局詳情",
+                costDetailsTitle: "費用詳情", playersJoinedTitle: "已參加者", addressLabel: "地址:",
+                ballsToBringLabel: "帶備網球:", joinGameBtn: "加入球局", withdrawBtn: "退出球局",
+                editBookingBtn: "編輯預訂", cancelBookingBtn: "取消預訂", userProfileTitle: "個人資料",
+                displayNameLabel: "顯示名稱", telegramUsernameLabel: "Telegram 用戶名", saveProfileBtn: "儲存設定",
+                myCreatedBookings: "我創建的預訂", myJoinedGames: "我參加的球局", loadingDashboard: "載入主頁板...",
+                dashboardMockupInfo: "(此為佔位符。主頁板在另一個HTML檔案中。)",
+                editModalTitle: "編輯預訂", saveChangesBtn: "儲存更改",
+                activeBookingsTitle: "進行中預訂 (未滿)", availableSpotsTitle: "總剩餘位置",
+                filterSearchTitle: "篩選與搜尋", dateRangeAllUpcoming: "所有即將開始", dateRangeNext10: "未來10天",
+                dateRangeNext20: "未來20天", dateRangeNext30: "未來30天", playStyleAll: "所有打法",
+                playStyleRallying: "搓波", playStyleSets: "開SET", playStyleOther: "其他",
+                areaAll: "所有地區", areaHKIsland: "香港島", areaKowloon: "九龍", areaNT: "新界",
+                upcomingGamesTitle: "即將舉行的球局", courtLabel: "場地:", playStyleLabel: "打法:",
+                creatorLabel: "創建者:", slotsLabel: "位置:", statusLabel: "狀態:", statusActive: "進行中",
+                statusCancelled: "已取消", statusExpired: "已過期", totalCourtChargeLabel: "場地總費用:",
+                costPerPersonLabel: "預計每人費用:", ballsLabel: "網球:", viewDetailsBtn: "查看詳情",
+                ballsBringOwn: "請自備", gameFull: "(已滿)",
+                footerNote: "提示：僅顯示未來及過去60天內的預訂記錄，更早的記錄將自動歸檔。",
+                createModalTitle: "創建新的預訂", courtNameLabel: "場地名稱/地點", courtAddressLabel: "地址 (香港)",
+                areaLabel: "地區", dateLabel: "日期", startTimeLabel: "開始時間", durationLabel: "持續時間",
+                totalSlotsLabel: "總人數 (包括自己)", courtChargeLabel: "場地總費用 (HK$)",
+                ballsCreatorProvideLabel: "您將提供多少個網球?", notesLabel: "備註 (可選)",
+                cancelBtn: "取消", submitBookingBtn: "提交預訂", contactCreatorTooltip: "聯絡創建者",
+                contactPlayerTooltip: "聯絡球員", noBookingsFound: "沒有符合條件的預訂。",
+                bookingNotFound: "找不到預訂。", profileSaved: "個人資料已成功儲存！",
+                bookingCreated: "預訂已成功創建！", bookingUpdated: "預訂已成功更新！",
+                joinedGame: "已成功加入球局！", joinGameError: "無法加入球局 (已滿或已加入)。",
+                withdrewFromGame: "已退出球局。", confirmCancelBooking: "您確定要取消此預訂嗎？",
+                bookingCancelled: "預訂已取消。", enhanceNoteBtn: "✨ AI增強備註", suggestIcebreakersBtn: "✨ AI建議破冰話題",
+                aiError: "AI功能失敗，請重試。", icebreakersGenerated: "已生成破冰話題！",
+                loginBtn: "登入", signupBtn: "註冊", logoutBtn: "登出", loggedInAs: "登入身份:",
+                signupSuccess: "註冊成功！", loginSuccess: "登入成功！", logoutSuccess: "已登出。",
+                mustBeLoggedInToBook: "您必須登入才能創建預訂。", errorCreatingBooking: "創建預訂時發生錯誤。",
+                enterNoteFirst: "請先輸入備註內容。", emailPasswordRequired: "電郵和密碼為必填項。",
+                mustBeLoggedIn: "您必須登入才能執行此操作。",
+                cannotEditBooking: "您無法編輯此預訂。", cannotUpdateBooking: "更新預訂錯誤。您可能不是創建者。",
+                landingTitle: "歡迎來到 LoL網球休閒會!", landingSubtitle: "輕鬆尋找、創建和加入網球局，與其他會員一同享受樂趣。告別繁瑣的聊天記錄！",
+                landingHint: "(請使用上方標題欄的登入/註冊按鈕，或下方的按鈕開始)",
+                getStarted: "開始使用", emailLabel: "電郵", passwordLabel: "密碼",
+                adminPanelTitle: "管理員面板", adminRemoveUser: "移除用戶 (模擬)", adminRemoveBooking: "移除預訂 (模擬)",
+                invalidTimeMinutes: "開始時間的分鐘數必須為 '00' 或 '30'。"
+            }
+        };
+
+        let currentLanguage = 'en';
+        let currentFirebaseUser = null; // Will hold the Firebase user object when logged in
+        const SUPERADMIN_UID = "superadmin123"; // Define your superadmin UID here
+
+        let currentUserProfile = { // Mock current user profile data, will be updated by Firebase Auth
+            id: null,
+            name: "User",
+            telegram: ""
+        };
+        let mockBookings = [ // Mock data array - will be replaced by Firestore data
+            { 
+                id: "booking001", creatorId: "alice123", creatorName: "Alice W.", creatorTelegram: "AliceTennis",
+                courtName: "Victoria Park Court 1", address: "1 Hing Fat Street, Causeway Bay", area: "hk_island",
+                dateTime: new Date(new Date().getFullYear(), 5, 7, 10, 0), duration: 2, playStyle: "sets", 
+                totalSlots: 4, courtCharge: 200, ballsByCreator: 3, notes: "Intermediate players welcome!", 
+                players: [
+                    { id: "alice123", name: "Alice W.", balls: 3, telegram: "AliceTennis"}, 
+                    { id: "bob456", name: "Bob T.B.", balls: 1, telegram: "BobServes"}
+                ], status: "active" 
+            },
+            { 
+                id: "booking002", creatorId: "bob456", creatorName: "Bob T.B.", creatorTelegram: "BobServes",
+                courtName: "Kowloon Tsai Park Court 5", address: "13 Inverness Rd, Kowloon City", area: "kowloon",
+                dateTime: new Date(new Date().getFullYear(), 5, 8, 14, 0), duration: 2, playStyle: "rallying", 
+                totalSlots: 2, courtCharge: 150, ballsByCreator: 0, notes: "Casual rallying session.", 
+                players: [ { id: "bob456", name: "Bob T.B.", balls: 0, telegram: "BobServes" } ], status: "active"
+            },
+            { 
+                id: "booking003", creatorId: "carol789", creatorName: "Carol C.", creatorTelegram: "CarolPlays",
+                courtName: "Sha Tin Park Court 2", address: "2 Yuen Wo Rd, Sha Tin", area: "nt",
+                dateTime: new Date(new Date().getFullYear(), 4, 1, 18, 0), duration: 1, playStyle: "other", // Past date for expired
+                totalSlots: 4, courtCharge: 120, ballsByCreator: 6, notes: "Coaching session.", 
+                players: [
+                    { id: "carol789", name: "Carol C.", balls: 6, telegram: "CarolPlays"}, 
+                    { id: "user123", name: currentUserProfile.name, balls: 0, telegram: currentUserProfile.telegram}, // Will be current user
+                    { id: "dave101", name: "Dave D.", balls: 0, telegram: "DaveHits"},
+                    { id: "eve202", name: "Eve E.", balls: 0, telegram: "EveRallies"}
+                ], status: "active" 
+            },
+             { 
+                id: "booking004", creatorId: "david234", creatorName: "David D.", creatorTelegram: "DavidPlays",
+                courtName: "Causeway Bay Sports Ground Ct 1", address: "Causeway Bay", area: "hk_island",
+                dateTime: new Date(new Date().getFullYear(), 5, 10, 15, 0), duration: 2, playStyle: "sets", 
+                totalSlots: 2, courtCharge: 180, ballsByCreator: 2, notes: "Friendly match.", 
+                players: [], status: "cancelled" 
+            }
+        ];
+        
+        // --- DOM Elements ---
+        const mainContent = document.getElementById('mainContent');
+        const landingPageView = document.getElementById('landingPageView');
+        const dashboardView = document.getElementById('dashboardView');
+        const bookingDetailView = document.getElementById('bookingDetailView');
+        const userProfileView = document.getElementById('userProfileView');
+        const bookingListContainer = document.getElementById('bookingListContainer');
+        const createBookingModal = document.getElementById('createBookingModal');
+        const editBookingModal = document.getElementById('editBookingModal');
+        const toastNotification = document.getElementById('toastNotification');
+        const toastMessage = document.getElementById('toastMessage');
+        
+        // --- Utility Functions ---
+        function formatDate(dateObj) {
+            return dateObj.toLocaleDateString(currentLanguage === 'zh' ? 'zh-HK' : 'en-US', { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' });
+        }
+        function formatTime(dateObj) {
+            return dateObj.toLocaleTimeString(currentLanguage === 'zh' ? 'zh-HK' : 'en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        }
+        function getEndTime(startTime, durationHours) {
+            const endTime = new Date(startTime.getTime());
+            endTime.setHours(endTime.getHours() + Math.floor(durationHours));
+            endTime.setMinutes(endTime.getMinutes() + (durationHours % 1) * 60);
+            return endTime;
+        }
+         function showToast(messageKey, type = 'info', duration = 3000) {
+            toastMessage.textContent = translations[currentLanguage][messageKey] || messageKey;
+            toastNotification.className = 'toast show ' + type;
+            setTimeout(() => {
+                toastNotification.classList.remove('show');
+            }, duration);
+        }
+        // Area Key Suffix Mapping
+        const areaKeySuffixMap = {
+            "hk_island": "HKIsland",
+            "kowloon": "Kowloon",
+            "nt": "NT"
+        };
+        function validateTimeInput(timeValue) {
+            if (!timeValue) return true; // Allow empty if not required, handle requirement separately
+            const minutes = timeValue.split(':')[1];
+            return minutes === "00" || minutes === "30";
+        }
+
+        // --- Language & Initial Setup ---
+        function setLanguage(lang) { 
+            currentLanguage = lang;
+            document.documentElement.lang = lang;
+            const currentLangDisplayEl = document.getElementById('currentLangDisplay');
+            if (currentLangDisplayEl) currentLangDisplayEl.textContent = lang.toUpperCase();
+            
+            document.querySelectorAll('[data-lang-key]').forEach(el => {
+                const key = el.getAttribute('data-lang-key');
+                if (translations[lang] && translations[lang][key]) {
+                    el.textContent = translations[lang][key];
+                }
+            });
+            document.querySelectorAll('[data-lang-title]').forEach(el => {
+                const key = el.getAttribute('data-lang-title');
+                 if (translations[lang] && translations[lang][key]) {
+                    el.title = translations[lang][key];
+                }
+            });
+            const languageDropdownEl = document.getElementById('languageDropdown');
+            if(languageDropdownEl) languageDropdownEl.classList.add('hidden');
+            
+            if (dashboardView && !dashboardView.classList.contains('hidden')) {
+                renderDashboard();
+            }
+            const currentDetailBookingId = document.getElementById('detailActionButtons')?.dataset.currentBookingId;
+            if (bookingDetailView && !bookingDetailView.classList.contains('hidden') && currentDetailBookingId) {
+                showBookingDetail(currentDetailBookingId);
+            }
+            if (userProfileView && !userProfileView.classList.contains('hidden')) {
+                populateUserProfileView(); 
+            }
+        }
+
+        const languageSwitcherBtn = document.getElementById('languageSwitcher');
+        const languageDropdown = document.getElementById('languageDropdown');
+        if(languageSwitcherBtn) languageSwitcherBtn.addEventListener('click', (e) => { e.stopPropagation(); languageDropdown.classList.toggle('hidden'); });
+        if(languageDropdown) document.querySelectorAll('#languageDropdown a').forEach(link => {
+            link.addEventListener('click', (e) => { e.preventDefault(); setLanguage(e.target.getAttribute('data-lang')); });
+        });
+        document.addEventListener('click', function(event) {
+            if (languageDropdown && !languageDropdown.classList.contains('hidden') && languageSwitcherBtn && !languageSwitcherBtn.contains(event.target)) {
+                 languageDropdown.classList.add('hidden');
+            }
+        });
+        const currentYearEl = document.getElementById('currentYear');
+        if (currentYearEl) currentYearEl.textContent = new Date().getFullYear();
+
+
+        // --- View Navigation ---
+        function showView(viewElementId) {
+            ['landingPageView', 'dashboardView', 'bookingDetailView', 'userProfileView'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+            });
+            const viewToShow = document.getElementById(viewElementId);
+            if (viewToShow) viewToShow.classList.remove('hidden');
+            window.scrollTo(0,0);
+
+            if (viewElementId === 'dashboardView') {
+                renderDashboard(); 
+            }
+        }
+        
+        document.getElementById('homeLink').addEventListener('click', (e) => { 
+            e.preventDefault(); 
+            if (currentFirebaseUser) {
+                showView('dashboardView');
+            } else {
+                showView('landingPageView');
+            }
+        });
+        document.getElementById('backToDashboardBtn').addEventListener('click', () => showView('dashboardView'));
+        document.getElementById('backToDashboardBtnProfile').addEventListener('click', () => showView('dashboardView'));
+        
+        // Landing Page Buttons to focus landing page auth
+        document.getElementById('landingLoginBtn')?.addEventListener('click', () => document.getElementById('authEmailLanding')?.focus());
+        document.getElementById('landingSignupBtn')?.addEventListener('click', () => document.getElementById('authEmailLanding')?.focus());
+
+
+        // --- Dashboard Rendering ---
+        function renderDashboard() {
+            if (!bookingListContainer) return; 
+            bookingListContainer.innerHTML = ''; 
+            let activeCount = 0;
+            let availableSpots = 0;
+            const now = new Date();
+
+            const dateRangeFilter = document.getElementById('dateRangeFilter').value;
+            const playStyleFilter = document.getElementById('playStyleFilter').value;
+            const areaFilter = document.getElementById('areaFilter').value;
+
+            const filteredBookings = mockBookings.filter(booking => {
+                const bookingDateTime = new Date(booking.dateTime);
+                if (booking.status === 'active' && bookingDateTime < now) {
+                    booking.status = 'expired';
+                }
+
+                let matchesDate = true;
+                if (dateRangeFilter !== "all_upcoming") {
+                    const days = parseInt(dateRangeFilter.split('_')[1]);
+                    const futureDate = new Date(); 
+                    futureDate.setDate(now.getDate() + days);
+                    matchesDate = bookingDateTime >= now && bookingDateTime <= futureDate && booking.status !== 'expired';
+                } else {
+                     matchesDate = booking.status !== 'expired';
+                }
+                
+                const matchesPlayStyle = playStyleFilter === 'all' || booking.playStyle === playStyleFilter;
+                const matchesArea = areaFilter === 'all' || booking.area === areaFilter;
+                
+                return matchesDate && matchesPlayStyle && matchesArea;
+            });
+
+
+            if (filteredBookings.length === 0) {
+                bookingListContainer.innerHTML = `<p class="text-center text-gray-400" data-lang-key="noBookingsFound">${translations[currentLanguage].noBookingsFound}</p>`;
+            } else {
+                filteredBookings.forEach(booking => {
+                    const card = document.createElement('div');
+                    card.classList.add('card');
+                    if (booking.status === 'cancelled') card.classList.add('cancelled');
+                    if (booking.status === 'expired') card.classList.add('expired');
+
+                    const joinedCount = booking.players.length;
+                    const spotsLeft = booking.totalSlots - joinedCount;
+                    const isFull = spotsLeft <= 0;
+                    const costPerPerson = joinedCount > 0 && booking.courtCharge > 0 ? (booking.courtCharge / joinedCount).toFixed(0) : '---';
+                    
+                    let ballsByJoiners = 0;
+                    booking.players.forEach(p => { if(p.id !== booking.creatorId) ballsByJoiners += (p.balls || 0); });
+                    let ballsDisplay = '';
+                    if (booking.ballsByCreator > 0 && ballsByJoiners > 0) {
+                        ballsDisplay = `Creator(${booking.ballsByCreator}) + Joiner(s)(${ballsByJoiners})`;
+                    } else if (booking.ballsByCreator > 0) {
+                        ballsDisplay = `Creator(${booking.ballsByCreator})`;
+                    } else if (ballsByJoiners > 0) {
+                        ballsDisplay = `Joiner(s)(${ballsByJoiners})`;
+                    } else {
+                        ballsDisplay = `<span data-lang-key="ballsBringOwn">${translations[currentLanguage].ballsBringOwn}</span>`;
+                    }
+
+                    let playStyleIconClass = 'fas fa-info-circle text-gray-500'; 
+                    if (booking.playStyle === 'sets') playStyleIconClass = 'fas fa-trophy text-blue-400';
+                    if (booking.playStyle === 'rallying') playStyleIconClass = 'fas fa-sync-alt text-green-400';
+
+                    let slotIcons = '';
+                    for (let i = 0; i < booking.totalSlots; i++) {
+                        slotIcons += `<span class="slot-icon ${i < joinedCount ? 'filled' : 'empty'} mr-1"><i class="fas fa-user"></i></span>`;
+                    }
+
+                    let statusTextKey = `status${booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}`;
+                    let statusClass = `status-${booking.status}`;
+
+                    const areaKeySuffix_card = areaKeySuffixMap[booking.area] || booking.area;
+                    const areaDisplayKey_card = `area${areaKeySuffix_card}`;
+                    const areaDisplayText_card = translations[currentLanguage][areaDisplayKey_card] || booking.area;
+
+
+                    card.innerHTML = `
+                        <div class="booking-card-header flex justify-between items-start">
+                            <div>
+                                <h3 class="text-xl font-bold text-blue-400 mb-1">
+                                    <span>${formatDate(new Date(booking.dateTime))}</span><span class="text-gray-500">  •  </span><span>${formatTime(new Date(booking.dateTime))} - ${formatTime(getEndTime(new Date(booking.dateTime), booking.duration))}</span>
+                                </h3>
+                                <span class="area-tag bg-${booking.area === 'hk_island' ? 'blue' : booking.area === 'kowloon' ? 'green' : 'purple'}-500 text-white">
+                                    <i class="fas fa-map-marker-alt mr-2"></i><span data-lang-key="${areaDisplayKey_card}">${areaDisplayText_card}</span>
+                                </span>
+                            </div>
+                            <span class="status-badge ${statusClass}" data-lang-key="${statusTextKey}">${translations[currentLanguage][statusTextKey]}</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 mt-4">
+                            <p><strong data-lang-key="courtLabel" class="label-text">Court:</strong> <span class="value-text">${booking.courtName}</span></p>
+                            <p class="flex items-center">
+                                <strong data-lang-key="playStyleLabel" class="label-text mr-1">Play Style:</strong> 
+                                <i class="${playStyleIconClass} mr-2 play-style-icon"></i>
+                                <span data-lang-key="playStyle${booking.playStyle.charAt(0).toUpperCase() + booking.playStyle.slice(1)}" class="value-text text-${booking.playStyle === 'sets' ? 'blue' : booking.playStyle === 'rallying' ? 'green' : 'gray'}-400">${translations[currentLanguage]['playStyle'+booking.playStyle.charAt(0).toUpperCase() + booking.playStyle.slice(1)]}</span>
+                            </p>
+                            <p><strong data-lang-key="creatorLabel" class="label-text">Creator:</strong> <span class="value-text">${booking.creatorName}</span> <a href="https://t.me/${booking.creatorTelegram}" target="_blank" class="text-blue-400 hover:text-blue-300 telegram-link" title="${translations[currentLanguage].contactCreatorTooltip}" data-lang-title="contactCreatorTooltip"><i class="fab fa-telegram-plane ml-1"></i></a></p>
+                            <div class="flex items-center">
+                                <strong data-lang-key="slotsLabel" class="label-text mr-2">Slots:</strong>
+                                ${slotIcons}
+                                <span class="text-sm ml-1 text-gray-400 value-text">(${joinedCount}/${booking.totalSlots} Joined ${isFull && booking.status === 'active' ? `<span class="text-red-400 font-semibold" data-lang-key="gameFull"> - ${translations[currentLanguage].gameFull}</span>` : ''})</span>
+                            </div>
+                            <p><strong data-lang-key="totalCourtChargeLabel" class="label-text">Total Charge:</strong> <span class="font-semibold text-red-400 value-text">HK$ ${booking.courtCharge}</span></p>
+                            <p><strong data-lang-key="costPerPersonLabel" class="label-text">Cost/Person:</strong> <span class="font-semibold text-green-400 value-text">HK$ ${costPerPerson}</span></p>
+                            <p><strong data-lang-key="ballsLabel" class="label-text">Balls:</strong> <span class="value-text">${ballsDisplay}</span> <i class="fas fa-baseball-ball text-yellow-400 ml-1"></i></p>
+                        </div>
+                        <div class="text-right mt-6">
+                            <button class="btn btn-primary view-details-btn" data-booking-id="${booking.id}" data-lang-key="viewDetailsBtn" ${booking.status === 'expired' || booking.status === 'cancelled' ? 'disabled' : ''}>${translations[currentLanguage].viewDetailsBtn}</button>
+                        </div>
+                    `;
+                    bookingListContainer.appendChild(card);
+                    if (booking.status === 'active' && !isFull) activeCount++;
+                    if (booking.status === 'active') availableSpots += spotsLeft > 0 ? spotsLeft : 0;
+                });
+            }
+            
+            const activeBookingsCountEl = document.getElementById('activeBookingsCount');
+            if (activeBookingsCountEl) activeBookingsCountEl.textContent = activeCount;
+            
+            const availableSpotsCountEl = document.getElementById('availableSpotsCount');
+            if (availableSpotsCountEl) availableSpotsCountEl.textContent = availableSpots;
+
+
+            document.querySelectorAll('.view-details-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const bookingId = this.getAttribute('data-booking-id');
+                    showBookingDetail(bookingId);
+                });
+            });
+        }
+        
+        // --- Booking Detail View Logic ---
+        function showBookingDetail(bookingId) {
+            const booking = mockBookings.find(b => b.id === bookingId);
+            if (!booking) {
+                showToast('bookingNotFound', 'error'); 
+                return;
+            }
+            
+            const now = new Date();
+            if (booking.status === 'active' && new Date(booking.dateTime) < now) {
+                booking.status = 'expired';
+            }
+            
+            const setText = (id, value) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = value !== undefined && value !== null ? String(value) : 'N/A'; 
+            };
+            const setHtml = (id, html) => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = html !== undefined && html !== null ? String(html) : 'N/A';
+            }
+
+
+            setHtml('detailBookingTitle', `<span>${formatDate(new Date(booking.dateTime))}</span><span class="text-gray-500">  •  </span><span>${formatTime(new Date(booking.dateTime))} - ${formatTime(getEndTime(new Date(booking.dateTime), booking.duration))}</span>`);
+            
+            const areaTag = document.getElementById('detailAreaTag');
+            if(areaTag) {
+                const areaKeySuffix_detail = areaKeySuffixMap[booking.area] || booking.area;
+                const areaDisplayKey_detail = `area${areaKeySuffix_detail}`;
+                const areaDisplayText_detail = translations[currentLanguage][areaDisplayKey_detail] || booking.area;
+                areaTag.innerHTML = `<i class="fas fa-map-marker-alt mr-2"></i><span data-lang-key="${areaDisplayKey_detail}">${areaDisplayText_detail}</span>`;
+                areaTag.className = `area-tag bg-${booking.area === 'hk_island' ? 'blue' : booking.area === 'kowloon' ? 'green' : 'purple'}-500 text-white`;
+            }
+            
+            const statusBadge = document.getElementById('detailStatusBadge');
+            if(statusBadge) {
+                const statusKey = `status${booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}`;
+                statusBadge.textContent = translations[currentLanguage][statusKey];
+                statusBadge.className = `status-badge status-${booking.status}`;
+            }
+
+            setText('detailCourtName', booking.courtName);
+            setText('detailCourtAddress', booking.address);
+            const mapsLink = document.getElementById('detailMapsLink');
+            if(mapsLink) mapsLink.href = `https://www.google.com/maps/search/?api=1&query=YOUR_ENCODED_ADDRESS_HERE`;
+
+            const playStyleIcon = document.getElementById('detailPlayStyleIcon');
+            if(playStyleIcon) {
+                if (booking.playStyle === 'sets') playStyleIcon.className = 'fas fa-trophy text-blue-400 mr-2 play-style-icon';
+                else if (booking.playStyle === 'rallying') playStyleIcon.className = 'fas fa-sync-alt text-green-400 mr-2 play-style-icon';
+                else playStyleIcon.className = 'fas fa-info-circle text-gray-500 mr-2 play-style-icon';
+            }
+            const playStyleNameEl = document.getElementById('detailPlayStyleName');
+            if(playStyleNameEl) {
+                const playStyleKey = `playStyle${booking.playStyle.charAt(0).toUpperCase() + booking.playStyle.slice(1)}`;
+                playStyleNameEl.textContent = translations[currentLanguage][playStyleKey];
+                playStyleNameEl.className = `value-text text-${booking.playStyle === 'sets' ? 'blue' : booking.playStyle === 'rallying' ? 'green' : 'gray'}-400`;
+            }
+
+            setText('detailDuration', `${booking.duration} hours`);
+            setText('detailCreatorName', booking.creatorName);
+            const creatorTeleLink = document.getElementById('detailCreatorTelegram');
+            if(creatorTeleLink) creatorTeleLink.href = `https://t.me/${booking.creatorTelegram}`;
+            
+            let ballsByJoiners = 0;
+            booking.players.forEach(p => { if(p.id !== booking.creatorId) ballsByJoiners += (p.balls || 0); });
+            let ballsDisplay = '';
+            if (booking.ballsByCreator > 0 && ballsByJoiners > 0) ballsDisplay = `Creator(${booking.ballsByCreator}) + Joiner(s)(${ballsByJoiners})`;
+            else if (booking.ballsByCreator > 0) ballsDisplay = `Creator(${booking.ballsByCreator})`;
+            else if (ballsByJoiners > 0) ballsDisplay = `Joiner(s)(${ballsByJoiners})`;
+            else ballsDisplay = `<span data-lang-key="ballsBringOwn">${translations[currentLanguage].ballsBringOwn}</span>`;
+            setHtml('detailBallsInfo', `${ballsDisplay}`); 
+
+            setText('detailTotalCharge', `HK$ ${booking.courtCharge}`);
+            const joinedCount = booking.players.length;
+            setText('detailCostPerPerson', joinedCount > 0 && booking.courtCharge > 0 ? `HK$ ${(booking.courtCharge / joinedCount).toFixed(0)}` : 'HK$ ---');
+            setText('detailNotes', booking.notes); 
+
+            setText('detailJoinedCount', joinedCount);
+            setText('detailTotalSlots', booking.totalSlots);
+            const playerListEl = document.getElementById('detailPlayerList');
+            if(playerListEl) {
+                playerListEl.innerHTML = '';
+                booking.players.forEach(player => {
+                    const li = document.createElement('li');
+                    let playerText = player.name;
+                    if (player.id === booking.creatorId) playerText += ` (Creator)`;
+                    if (player.balls > 0) playerText += ` (Bringing ${player.balls} ball${player.balls > 1 ? 's' : ''})`;
+                    
+                    li.innerHTML = `<span class="value-text">${playerText}</span> 
+                                    <a href="https://t.me/${player.telegram}" target="_blank" class="text-blue-400 hover:text-blue-300 telegram-link" title="${translations[currentLanguage].contactPlayerTooltip}" data-lang-title="contactPlayerTooltip">
+                                        <i class="fab fa-telegram-plane"></i>
+                                    </a>`;
+                    playerListEl.appendChild(li);
+                });
+            }
+
+            const isCreator = currentFirebaseUser && currentFirebaseUser.uid === booking.creatorId;
+            const hasJoined = currentFirebaseUser && booking.players.some(p => p.id === currentFirebaseUser.uid);
+            const isFull = joinedCount >= booking.totalSlots;
+            const canTakeAction = booking.status === 'active';
+
+            document.getElementById('joinGameSection').classList.toggle('hidden', !canTakeAction || isCreator || hasJoined || isFull || !currentFirebaseUser);
+            document.getElementById('withdrawBtn').classList.toggle('hidden', !canTakeAction || isCreator || !hasJoined || !currentFirebaseUser);
+            document.getElementById('editBookingBtnDetail').classList.toggle('hidden', !isCreator || !canTakeAction);
+            document.getElementById('cancelBookingBtnDetail').classList.toggle('hidden', !isCreator || !canTakeAction);
+            document.getElementById('detailActionButtons').dataset.currentBookingId = bookingId;
+            
+            const icebreakersResultEl = document.getElementById('icebreakersResult');
+            if (icebreakersResultEl) {
+                icebreakersResultEl.innerHTML = '';
+                icebreakersResultEl.classList.add('hidden');
+            }
+            const icebreakersSectionEl = document.getElementById('icebreakersSection');
+            if (icebreakersSectionEl) {
+                icebreakersSectionEl.classList.toggle('hidden', !canTakeAction); 
+            }
+            showView('bookingDetailView');
+        }
+        
+        function populateUserProfileView() {
+            if (!currentFirebaseUser) { 
+                showToast('mustBeLoggedIn', 'error'); 
+                showView('landingPageView'); 
+                return;
+            }
+            document.getElementById('displayName').value = currentUserProfile.name; 
+            document.getElementById('telegramUsername').value = currentUserProfile.telegram; 
+
+            const createdBookingsListEl = document.getElementById('createdBookingsList');
+            createdBookingsListEl.innerHTML = ''; 
+            mockBookings.filter(b => b.creatorId === currentFirebaseUser.uid).forEach(b => {
+                const li = document.createElement('li');
+                li.className = "p-3 bg-gray-700 rounded-md text-sm hover:bg-gray-600 cursor-pointer view-details-profile-link";
+                li.dataset.bookingId = b.id;
+                const statusKey = `status${b.status.charAt(0).toUpperCase() + b.status.slice(1)}`;
+                li.innerHTML = `${formatDate(new Date(b.dateTime))} - ${b.courtName} (<span data-lang-key="${statusKey}">${translations[currentLanguage][statusKey]}</span>)`;
+                createdBookingsListEl.appendChild(li);
+            });
+
+            const joinedGamesListEl = document.getElementById('joinedGamesList');
+            joinedGamesListEl.innerHTML = ''; 
+            mockBookings.filter(b => b.players.some(p => p.id === currentFirebaseUser.uid && p.id !== b.creatorId)).forEach(b => {
+                 const li = document.createElement('li');
+                li.className = "p-3 bg-gray-700 rounded-md text-sm hover:bg-gray-600 cursor-pointer view-details-profile-link";
+                li.dataset.bookingId = b.id;
+                const statusKey = `status${b.status.charAt(0).toUpperCase() + b.status.slice(1)}`;
+                li.innerHTML = `${formatDate(new Date(b.dateTime))} - ${b.courtName} (<span data-lang-key="${statusKey}">${translations[currentLanguage][statusKey]}</span>)`;
+                joinedGamesListEl.appendChild(li);
+            });
+            document.querySelectorAll('.view-details-profile-link').forEach(link => {
+                link.addEventListener('click', function() { showBookingDetail(this.dataset.bookingId); });
+            });
+
+            // Show/Hide Admin Panel
+            const adminSection = document.getElementById('adminSection');
+            if (adminSection) {
+                adminSection.classList.toggle('hidden', !(currentFirebaseUser && currentFirebaseUser.uid === SUPERADMIN_UID));
+            }
+        }
+
+
+        // --- User Profile View ---
+        document.getElementById('myProfileLink').addEventListener('click', () => {
+            if (!currentFirebaseUser) {
+                 showToast('mustBeLoggedIn', 'error'); 
+                 return;
+            }
+            populateUserProfileView(); 
+            showView('userProfileView');
+        });
+
+        document.getElementById('userProfileForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            if (!currentFirebaseUser) {
+                showToast('mustBeLoggedIn', 'error'); return;
+            }
+            const newName = document.getElementById('displayName').value;
+            const newTele = document.getElementById('telegramUsername').value;
+            
+            try {
+                await window.appAuth.updateUserProfile(currentFirebaseUser, { displayName: newName });
+                currentUserProfile.name = newName;
+                currentUserProfile.telegram = newTele;
+                 mockBookings.forEach(b => { 
+                    if(b.creatorId === currentFirebaseUser.uid) { b.creatorName = newName; b.creatorTelegram = newTele; }
+                    b.players.forEach(p => { if(p.id === currentFirebaseUser.uid) { p.name = newName; p.telegram = newTele; }});
+                });
+                document.getElementById('welcomeUserText').textContent = `${translations[currentLanguage].welcomeUser.split('User!')[0]}${newName}!`;
+                showToast('profileSaved', 'success'); 
+                renderDashboard(); 
+            } catch (error) {
+                console.error("Error updating profile:", error);
+                showToast(error.message, 'error');
+            }
+        });
+
+
+        // --- Modal Setup and Form Submissions ---
+        function setupModal(modalElement, openBtnQuery, closeBtnElement, cancelBtnElement, formId) {
+            const openBtn = openBtnQuery ? document.querySelector(openBtnQuery) : null;
+            if (openBtn) {
+                openBtn.addEventListener('click', () => {
+                    if (!currentFirebaseUser && (formId === 'createBookingForm' || formId === 'editBookingForm')) {
+                        showToast('mustBeLoggedInToBook', 'error');
+                        return;
+                    }
+                    modalElement.classList.remove('hidden');
+                    modalElement.classList.add('flex'); 
+                });
+            }
+            const close = () => {
+                modalElement.classList.add('hidden');
+                modalElement.classList.remove('flex');
+                if (formId && document.getElementById(formId)) document.getElementById(formId).reset(); 
+            };
+            if (closeBtnElement) closeBtnElement.addEventListener('click', close);
+            if (cancelBtnElement) cancelBtnElement.addEventListener('click', close);
+            
+            modalElement.addEventListener('click', function(event) { if (event.target === modalElement) close(); });
+        }
+        
+        setupModal(createBookingModal, '#openCreateBookingModalBtnHeader', document.getElementById('closeCreateBookingModal'), document.getElementById('cancelCreateBooking'), 'createBookingForm');
+        setupModal(editBookingModal, null, document.getElementById('closeEditBookingModal'), document.getElementById('cancelEditBooking'), 'editBookingForm');
+
+        document.addEventListener('keydown', (event) => { 
+            if (event.key === 'Escape') {
+                if (!createBookingModal.classList.contains('hidden')) {
+                    createBookingModal.classList.add('hidden'); createBookingModal.classList.remove('flex');
+                    if(document.getElementById('createBookingForm')) document.getElementById('createBookingForm').reset();
+                }
+                if (!editBookingModal.classList.contains('hidden')) {
+                    editBookingModal.classList.add('hidden'); editBookingModal.classList.remove('flex');
+                    if(document.getElementById('editBookingForm')) document.getElementById('editBookingForm').reset();
+                }
+            }
+        });
+        
+        // Create Booking Form
+        document.getElementById('createBookingForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            if (!currentFirebaseUser) {
+                showToast('mustBeLoggedInToBook', 'error'); return;
+            }
+            const startTimeValue = document.getElementById('createStartTime').value;
+            if (!validateTimeInput(startTimeValue)) {
+                showToast('invalidTimeMinutes', 'error');
+                return;
+            }
+            const newBookingData = {
+                creatorId: currentFirebaseUser.uid,
+                creatorName: currentUserProfile.name, 
+                creatorTelegram: currentUserProfile.telegram,
+                courtName: document.getElementById('createCourtName').value,
+                address: document.getElementById('createCourtAddress').value,
+                area: document.getElementById('createCourtArea').value,
+                dateTime: window.FirebaseTimestamp.fromDate(new Date(document.getElementById('createBookingDate').value + 'T' + startTimeValue)),
+                duration: parseFloat(document.getElementById('createDuration').value),
+                playStyle: document.getElementById('createPlayStyle').value,
+                totalSlots: parseInt(document.getElementById('createTotalSlots').value),
+                courtCharge: parseInt(document.getElementById('createCourtCharge').value) || 0,
+                ballsByCreator: parseInt(document.getElementById('createBallsProvided').value) || 0,
+                notes: document.getElementById('createNotes').value,
+                players: [{id: currentFirebaseUser.uid, name: currentUserProfile.name, balls: parseInt(document.getElementById('createBallsProvided').value) || 0, telegram: currentUserProfile.telegram}],
+                status: 'active',
+                createdAt: window.serverTimestampFirebase()
+            };
+            try {
+                newBookingData.id = "booking" + String(Date.now()).slice(-5); 
+                newBookingData.dateTime = newBookingData.dateTime.toDate(); 
+                mockBookings.unshift(newBookingData);
+                
+                renderDashboard();
+                showToast('bookingCreated', 'success'); 
+                createBookingModal.classList.add('hidden'); createBookingModal.classList.remove('flex'); this.reset();
+            } catch (e) {
+                console.error("Error adding document: ", e);
+                showToast('errorCreatingBooking', 'error');
+            }
+        });
+
+        // Edit Booking (Open and Submit)
+        document.getElementById('editBookingBtnDetail')?.addEventListener('click', function() {
+            if (!currentFirebaseUser) { showToast('mustBeLoggedIn', 'error'); return; }
+            const bookingId = document.getElementById('detailActionButtons').dataset.currentBookingId;
+            const booking = mockBookings.find(b => b.id === bookingId);
+            if (!booking || booking.creatorId !== currentFirebaseUser.uid) {
+                showToast('cannotEditBooking', 'error'); 
+                return;
+            }
+
+            document.getElementById('editingBookingId').value = booking.id;
+            document.getElementById('editCourtName').value = booking.courtName;
+            document.getElementById('editCourtAddress').value = booking.address;
+            document.getElementById('editCourtArea').value = booking.area;
+            const dateForInput = new Date(booking.dateTime).toISOString().split('T')[0];
+            const timeForInput = new Date(booking.dateTime).toTimeString().split(' ')[0].substring(0,5);
+            document.getElementById('editBookingDate').value = dateForInput;
+            document.getElementById('editStartTime').value = timeForInput;
+            document.getElementById('editDuration').value = booking.duration;
+            document.getElementById('editPlayStyle').value = booking.playStyle;
+            document.getElementById('editTotalSlots').value = booking.totalSlots;
+            document.getElementById('editCourtCharge').value = booking.courtCharge;
+            document.getElementById('editBallsProvided').value = booking.ballsByCreator;
+            document.getElementById('editBookingStatus').value = booking.status;
+            document.getElementById('editNotes').value = booking.notes;
+            
+            editBookingModal.classList.remove('hidden'); editBookingModal.classList.add('flex');
+        });
+
+        document.getElementById('editBookingForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            if (!currentFirebaseUser) { showToast('mustBeLoggedIn', 'error'); return; }
+
+            const bookingId = document.getElementById('editingBookingId').value;
+            const bookingIndex = mockBookings.findIndex(b => b.id === bookingId);
+            if (bookingIndex === -1 || mockBookings[bookingIndex].creatorId !== currentFirebaseUser.uid) {
+                 showToast('cannotUpdateBooking', 'error'); 
+                 return;
+            }
+            const editStartTimeValue = document.getElementById('editStartTime').value;
+            if (!validateTimeInput(editStartTimeValue)) {
+                showToast('invalidTimeMinutes', 'error');
+                return;
+            }
+            
+            const updatedData = {
+                courtName: document.getElementById('editCourtName').value,
+                address: document.getElementById('editCourtAddress').value,
+                area: document.getElementById('editCourtArea').value,
+                dateTime: window.FirebaseTimestamp.fromDate(new Date(document.getElementById('editBookingDate').value + 'T' + editStartTimeValue)),
+                duration: parseFloat(document.getElementById('editDuration').value),
+                playStyle: document.getElementById('editPlayStyle').value,
+                totalSlots: parseInt(document.getElementById('editTotalSlots').value),
+                courtCharge: parseInt(document.getElementById('editCourtCharge').value) || 0,
+                ballsByCreator: parseInt(document.getElementById('editBallsProvided').value) || 0,
+                notes: document.getElementById('editNotes').value,
+                status: document.getElementById('editBookingStatus').value
+            };
+
+            try {
+                mockBookings[bookingIndex] = { ...mockBookings[bookingIndex], ...updatedData, dateTime: updatedData.dateTime.toDate() };
+                 if(mockBookings[bookingIndex].creatorId === currentFirebaseUser.uid) {
+                    const creatorPlayer = mockBookings[bookingIndex].players.find(p => p.id === currentFirebaseUser.uid);
+                    if(creatorPlayer) creatorPlayer.balls = parseInt(document.getElementById('editBallsProvided').value) || 0;
+                }
+
+                renderDashboard();
+                showBookingDetail(bookingId); 
+                showToast('bookingUpdated', 'success'); 
+                editBookingModal.classList.add('hidden'); editBookingModal.classList.remove('flex'); this.reset();
+            } catch (e) {
+                console.error("Error updating document: ", e);
+                showToast('errorUpdatingBooking', 'error'); 
+            }
+        });
+
+        // --- Detail View Action Button Handlers ---
+        document.getElementById('confirmJoinBtn')?.addEventListener('click', async function() {
+            if (!currentFirebaseUser) { showToast('mustBeLoggedIn', 'error'); return; }
+            const bookingId = document.getElementById('detailActionButtons').dataset.currentBookingId;
+            const bookingIndex = mockBookings.findIndex(b => b.id === bookingId);
+            if (bookingIndex === -1) return;
+            const booking = mockBookings[bookingIndex];
+            
+            const ballsBrought = parseInt(document.getElementById('ballsToBring').value) || 0;
+            if (booking && booking.status === 'active' && booking.players.length < booking.totalSlots && !booking.players.some(p=>p.id === currentFirebaseUser.uid)) {
+                const newPlayer = {
+                    id: currentFirebaseUser.uid, 
+                    name: currentUserProfile.name, 
+                    balls: ballsBrought,
+                    telegram: currentUserProfile.telegram
+                };
+                booking.players.push(newPlayer);
+                
+                showBookingDetail(bookingId); 
+                renderDashboard(); 
+                showToast('joinedGame', 'success'); 
+            } else {
+                showToast('joinGameError', 'error'); 
+            }
+        });
+        document.getElementById('withdrawBtn')?.addEventListener('click', async function() {
+            if (!currentFirebaseUser) { showToast('mustBeLoggedIn', 'error'); return; }
+            const bookingId = document.getElementById('detailActionButtons').dataset.currentBookingId;
+            const bookingIndex = mockBookings.findIndex(b => b.id === bookingId);
+            if (bookingIndex === -1) return;
+            const booking = mockBookings[bookingIndex];
+
+            if (booking && booking.status === 'active') {
+                const updatedPlayers = booking.players.filter(p => p.id !== currentFirebaseUser.uid);
+                booking.players = updatedPlayers;
+
+                showBookingDetail(bookingId); 
+                renderDashboard(); 
+                showToast('withdrewFromGame', 'info'); 
+            }
+        });
+         document.getElementById('cancelBookingBtnDetail')?.addEventListener('click', async function() {
+            if (!currentFirebaseUser) { showToast('mustBeLoggedIn', 'error'); return; }
+            const bookingId = document.getElementById('detailActionButtons').dataset.currentBookingId;
+            const bookingIndex = mockBookings.findIndex(b => b.id === bookingId);
+             if (bookingIndex === -1) return;
+            const booking = mockBookings[bookingIndex];
+
+            if (booking && booking.creatorId === currentFirebaseUser.uid && booking.status === 'active') {
+                if (confirm(translations[currentLanguage].confirmCancelBooking || "Are you sure you want to cancel this booking?")) { 
+                    booking.status = 'cancelled';
+                    showBookingDetail(bookingId); 
+                    renderDashboard(); 
+                    showToast('bookingCancelled', 'info'); 
+                }
+            }
+        });
+        
+        // Add event listeners to filters
+        document.getElementById('dateRangeFilter').addEventListener('change', renderDashboard);
+        document.getElementById('playStyleFilter').addEventListener('change', renderDashboard);
+        document.getElementById('areaFilter').addEventListener('change', renderDashboard);
+
+        // --- Gemini API Integration ---
+        const GEMINI_API_KEY = ""; 
+
+        async function callGeminiAPI(prompt) {
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+            const payload = {
+                contents: [{ role: "user", parts: [{ text: prompt }] }]
+            };
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error("Gemini API Error:", errorData);
+                    throw new Error(`API Error: ${response.status}`);
+                }
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    return result.candidates[0].content.parts[0].text;
+                } else {
+                    console.error("Gemini API Response format error:", result);
+                    throw new Error("Unexpected API response format.");
+                }
+            } catch (error) {
+                console.error("Error calling Gemini API:", error);
+                showToast('aiError', 'error');
+                return null;
+            }
+        }
+
+        async function enhanceNote(noteText, noteElementId, loaderElementId) {
+            if (!noteText.trim()) {
+                showToast('enterNoteFirst', 'info'); 
+                return;
+            }
+            const loader = document.getElementById(loaderElementId);
+            if (loader) loader.classList.remove('hidden');
+            
+            const prompt = `You are a helpful assistant for a tennis club. Expand this brief tennis game note into a more detailed, friendly, and engaging message for other players. Keep it concise and positive. Note: "${noteText}"`;
+            const enhancedText = await callGeminiAPI(prompt);
+            
+            if (loader) loader.classList.add('hidden');
+            if (enhancedText) {
+                const noteEl = document.getElementById(noteElementId);
+                if (noteEl) noteEl.value = enhancedText;
+            }
+        }
+
+        document.getElementById('enhanceCreateNoteBtn')?.addEventListener('click', () => {
+            const noteText = document.getElementById('createNotes').value;
+            enhanceNote(noteText, 'createNotes', 'createNoteLoader');
+        });
+        document.getElementById('enhanceEditNoteBtn')?.addEventListener('click', () => {
+            const noteText = document.getElementById('editNotes').value;
+            enhanceNote(noteText, 'editNotes', 'editNoteLoader');
+        });
+        
+        document.getElementById('suggestIcebreakersBtn')?.addEventListener('click', async function() {
+            const bookingId = document.getElementById('detailActionButtons').dataset.currentBookingId;
+            const booking = mockBookings.find(b => b.id === bookingId);
+            if (!booking) return;
+
+            const loader = document.getElementById('icebreakersLoader');
+            const resultDiv = document.getElementById('icebreakersResult');
+            if (loader) loader.classList.remove('hidden');
+            if (resultDiv) resultDiv.classList.add('hidden');
+
+            const prompt = `Suggest 3 fun and lighthearted icebreaker questions or conversation starters for a group of ${booking.players.length} tennis players who are about to play a game of ${booking.playStyle}. Keep each suggestion on a new line.`;
+            const icebreakers = await callGeminiAPI(prompt);
+
+            if (loader) loader.classList.add('hidden');
+            if (icebreakers && resultDiv) {
+                resultDiv.textContent = icebreakers;
+                resultDiv.classList.remove('hidden');
+                showToast('icebreakersGenerated', 'success');
+            }
+        });
+
+        // Auth UI Event Listeners in the global script
+        document.getElementById('signupBtnLanding')?.addEventListener('click', async () => {
+            const email = document.getElementById('authEmailLanding').value;
+            const password = document.getElementById('authPasswordLanding').value;
+            if (!email || !password) { showToast('emailPasswordRequired', 'error'); return; } 
+            try {
+                const userCredential = await window.appAuth.signUp(email, password);
+                const displayName = email.split('@')[0]; 
+                await window.appAuth.updateUserProfile(userCredential.user, { displayName: displayName });
+                showToast('signupSuccess', 'success');
+            } catch (error) { console.error("Error signing up on landing:", error); showToast(error.code || error.message, 'error'); }
+        });
+
+        document.getElementById('loginBtnLanding')?.addEventListener('click', async () => {
+            const email = document.getElementById('authEmailLanding').value;
+            const password = document.getElementById('authPasswordLanding').value;
+             if (!email || !password) { showToast('emailPasswordRequired', 'error'); return; }
+            try {
+                await window.appAuth.logIn(email, password);
+                showToast('loginSuccess', 'success');
+            } catch (error) { console.error("Error logging in on landing:", error); showToast(error.code || error.message, 'error'); }
+        });
+        
+
+        document.getElementById('logoutBtnHeader')?.addEventListener('click', async () => {
+            try {
+                await window.appAuth.logOut();
+                showToast('logoutSuccess', 'info');
+            } catch (error) { console.error("Error logging out:", error); showToast(error.code || error.message, 'error'); }
+        });
+
+        // Admin Buttons
+        document.getElementById('adminRemoveUserBtn')?.addEventListener('click', () => {
+            alert(translations[currentLanguage].adminRemoveUser || "Remove User (Mock Action)");
+        });
+        document.getElementById('adminRemoveBookingBtn')?.addEventListener('click', () => {
+            alert(translations[currentLanguage].adminRemoveBooking || "Remove Booking (Mock Action)");
+        });
+
+
+        // Initial Load
+        setLanguage(currentLanguage); 
+        // showView is handled by onAuthStateChanged
+
+    </script>
+</body>
+</html>
